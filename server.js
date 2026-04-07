@@ -165,6 +165,80 @@ app.post("/api/users", async (req, res) => {
   }
 });
 
+app.post("/api/project-inquiries", async (req, res) => {
+  const user = req.body?.user;
+  const idea = req.body?.idea;
+  const source = req.body?.source;
+
+  if (
+    !user ||
+    !idea ||
+    typeof user !== "object" ||
+    typeof idea !== "object" ||
+    typeof user.firstName !== "string" ||
+    typeof user.lastName !== "string" ||
+    typeof user.email !== "string" ||
+    typeof user.contactNumber !== "string" ||
+    (user.company != null && typeof user.company !== "string") ||
+    (idea.projectName != null && typeof idea.projectName !== "string") ||
+    (idea.audience != null && typeof idea.audience !== "string") ||
+    (idea.timeline != null && typeof idea.timeline !== "string") ||
+    typeof idea.goal !== "string" ||
+    (source != null && typeof source !== "string")
+  ) {
+    return res.status(400).json({ error: "Invalid request payload." });
+  }
+
+  const firstName = user.firstName.trim();
+  const lastName = user.lastName.trim();
+  const email = user.email.trim();
+  const contactNumber = user.contactNumber.trim();
+  const company = user.company?.trim() || null;
+  const projectName = idea.projectName?.trim() || null;
+  const audience = idea.audience?.trim() || null;
+  const timeline = idea.timeline?.trim() || null;
+  const goal = idea.goal.trim();
+  const sourceValue = (source || "primary-action").trim() || "primary-action";
+
+  if (!firstName || !lastName || !email || !contactNumber || !goal) {
+    return res.status(400).json({ error: "Missing required fields." });
+  }
+
+  try {
+    const pool = getPool();
+    const [result] = await pool.query(
+      `
+        INSERT INTO project_inquiries
+          (first_name, last_name, email, contact_number, company, project_name, audience, timeline, goal, source)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        firstName,
+        lastName,
+        email,
+        contactNumber,
+        company,
+        projectName,
+        audience,
+        timeline,
+        goal,
+        sourceValue,
+      ]
+    );
+
+    return res.status(201).json({
+      id: result.insertId,
+      createdAt: new Date().toISOString(),
+      user: { firstName, lastName, email, contactNumber, company },
+      idea: { projectName, audience, timeline, goal },
+      source: sourceValue,
+    });
+  } catch (err) {
+    console.error("Error creating project inquiry:", err);
+    return res.status(500).json({ error: "Failed to save project inquiry." });
+  }
+});
+
 app.get("/api/users/:userId/tasks", (req, res) => {
   const { userId } = req.params;
   const tasks = listUserTasks(userId);
